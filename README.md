@@ -1,2 +1,1 @@
-# kelompok10
-project pemrograman website
+# Sistem Informasi Manajemen Toko - Kelompok 10
