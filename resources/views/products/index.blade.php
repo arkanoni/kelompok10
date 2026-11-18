@@ -3,41 +3,38 @@
 @section('title', 'Data Produk')
 
 @section('content')
+@php
+    $categories = ['Makanan', 'Minuman', 'Kebutuhan Rumah'];
+    $products = [
+        ['name' => 'Indomie Goreng',     'description' => 'Mi instan goreng 85 gr',        'category' => 'Makanan',         'price' => 3500,  'stock' => 120],
+        ['name' => 'Roti Tawar',         'description' => 'Roti tawar 400 gr',             'category' => 'Makanan',         'price' => 16000, 'stock' => 30],
+        ['name' => 'Teh Botol 450 ml',   'description' => 'Teh manis dalam kemasan botol', 'category' => 'Minuman',         'price' => 5000,  'stock' => 80],
+        ['name' => 'Air Mineral 600 ml', 'description' => 'Air mineral kemasan botol',     'category' => 'Minuman',         'price' => 3000,  'stock' => 4],
+        ['name' => 'Sabun Cuci Piring',  'description' => 'Sabun cuci piring 800 ml',      'category' => 'Kebutuhan Rumah', 'price' => 14000, 'stock' => 40],
+        ['name' => 'Deterjen Bubuk 1 kg','description' => 'Deterjen bubuk 1 kg',           'category' => 'Kebutuhan Rumah', 'price' => 22000, 'stock' => 25],
+    ];
+@endphp
+
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
     <h4 class="mb-0">Data Produk</h4>
     <a href="{{ route('products.create') }}" class="btn btn-primary">+ Tambah Produk</a>
 </div>
 
-@if (session('success'))
-    <div class="alert alert-success alert-dismissible fade show">
-        {{ session('success') }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-@endif
-
-@if ($errors->has('stock'))
-    <div class="alert alert-danger">{{ $errors->first('stock') }}</div>
-@endif
-
 {{-- Cari & filter --}}
-<form method="GET" action="{{ route('products.index') }}" class="row g-2 mb-3">
+<form method="GET" action="#" class="row g-2 mb-3" id="filter-form">
     <div class="col-md-5">
-        <input type="text" name="q" class="form-control" placeholder="Cari nama produk..."
-               value="{{ request('q') }}">
+        <input type="text" id="search-input" class="form-control" placeholder="Cari nama produk...">
     </div>
     <div class="col-md-4">
-        <select name="category" id="category-filter" class="form-select">
+        <select id="category-filter" class="form-select">
             <option value="">Semua kategori</option>
             @foreach ($categories as $category)
-                <option value="{{ $category->id }}" @selected(request('category') == $category->id)>
-                    {{ $category->nama_kategori }}
-                </option>
+                <option value="{{ $category }}">{{ $category }}</option>
             @endforeach
         </select>
     </div>
     <div class="col-md-3 d-flex gap-2">
-        <button class="btn btn-secondary flex-fill">Cari</button>
-        <a href="{{ route('products.index') }}" class="btn btn-outline-secondary">Reset</a>
+        <button type="button" id="btn-reset" class="btn btn-outline-secondary flex-fill">Reset</button>
     </div>
 </form>
 
@@ -55,68 +52,95 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse ($products as $product)
-                    <tr>
-                        <td>{{ $products->firstItem() + $loop->index }}</td>
+                @foreach ($products as $product)
+                    <tr class="product-row" data-name="{{ strtolower($product['name']) }}" data-category="{{ $product['category'] }}">
+                        <td class="row-number">{{ $loop->iteration }}</td>
                         <td>
-                            <div class="fw-semibold">{{ $product->name }}</div>
-                            @if ($product->description)
-                                <small class="text-muted">{{ \Illuminate\Support\Str::limit($product->description, 50) }}</small>
-                            @endif
+                            <div class="fw-semibold">{{ $product['name'] }}</div>
+                            <small class="text-muted">{{ $product['description'] }}</small>
                         </td>
-                        <td><span class="badge bg-info text-dark">{{ $product->category->nama_kategori }}</span></td>
-                        <td class="text-end">Rp {{ number_format($product->price, 0, ',', '.') }}</td>
+                        <td><span class="badge bg-info text-dark">{{ $product['category'] }}</span></td>
+                        <td class="text-end">Rp {{ number_format($product['price'], 0, ',', '.') }}</td>
                         <td>
-                            {{-- Update cepat stok --}}
-                            <form action="{{ route('products.stock', $product) }}" method="POST" class="input-group input-group-sm">
-                                @csrf
-                                @method('PATCH')
-                                <input type="number" min="0" name="stock" value="{{ $product->stock }}"
-                                       class="form-control {{ $product->stock <= 5 ? 'border-danger' : '' }}">
+                            <form action="#" method="POST" class="input-group input-group-sm form-stock">
+                                <input type="number" min="0" value="{{ $product['stock'] }}"
+                                       class="form-control {{ $product['stock'] <= 5 ? 'border-danger' : '' }}">
                                 <button class="btn btn-outline-primary" title="Simpan stok">Ubah</button>
                             </form>
-                            @if ($product->stock <= 5)
+                            @if ($product['stock'] <= 5)
                                 <small class="text-danger">Stok menipis</small>
                             @endif
                         </td>
                         <td class="text-end">
-                            <a href="{{ route('products.edit', $product) }}" class="btn btn-sm btn-warning">Edit</a>
-                            <form action="{{ route('products.destroy', $product) }}" method="POST"
-                                  class="d-inline form-delete" data-name="{{ $product->name }}">
-                                @csrf
-                                @method('DELETE')
+                            <a href="{{ route('products.edit') }}" class="btn btn-sm btn-warning">Edit</a>
+                            <form action="#" method="POST" class="d-inline form-delete" data-name="{{ $product['name'] }}">
                                 <button class="btn btn-sm btn-danger">Hapus</button>
                             </form>
                         </td>
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="6" class="text-center text-muted py-4">Belum ada data produk.</td>
-                    </tr>
-                @endforelse
+                @endforeach
+                <tr id="empty-row" style="display:none;">
+                    <td colspan="6" class="text-center text-muted py-4">Belum ada data produk.</td>
+                </tr>
             </tbody>
         </table>
     </div>
 </div>
 
-<div class="mt-3">
-    {{ $products->links('pagination::bootstrap-5') }}
-</div>
+{{-- Pagination statis (tampilan saja) --}}
+<nav class="mt-3">
+    <ul class="pagination">
+        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+        <li class="page-item active"><span class="page-link">1</span></li>
+        <li class="page-item"><a class="page-link" href="#">2</a></li>
+        <li class="page-item"><a class="page-link" href="#">&raquo;</a></li>
+    </ul>
+</nav>
 @endsection
 
 @push('scripts')
 <script>
-    // jQuery: konfirmasi hapus
+    // Filter nama + kategori langsung di browser
+    function applyFilter() {
+        const q = $('#search-input').val().toLowerCase();
+        const cat = $('#category-filter').val();
+        let visible = 0;
+
+        $('.product-row').each(function () {
+            const match = $(this).data('name').includes(q) && (!cat || $(this).data('category') === cat);
+            $(this).toggle(match);
+            if (match) {
+                visible++;
+                $(this).find('.row-number').text(visible);
+            }
+        });
+
+        $('#empty-row').toggle(visible === 0);
+    }
+
+    $('#search-input').on('input', applyFilter);
+    $('#category-filter').on('change', applyFilter);
+    $('#btn-reset').on('click', function () {
+        $('#search-input').val('');
+        $('#category-filter').val('');
+        applyFilter();
+    });
+    $('#filter-form').on('submit', function (e) { e.preventDefault(); });
+
+    // Konfirmasi hapus (hapus baris di tampilan saja)
     $('.form-delete').on('submit', function (e) {
+        e.preventDefault();
         const name = $(this).data('name');
-        if (!confirm('Yakin ingin menghapus produk "' + name + '"?')) {
-            e.preventDefault();
+        if (confirm('Yakin ingin menghapus produk "' + name + '"?')) {
+            $(this).closest('tr').remove();
+            applyFilter();
         }
     });
 
-    // jQuery: filter kategori langsung dikirim saat dipilih
-    $('#category-filter').on('change', function () {
-        $(this).closest('form').trigger('submit');
+    // Simpan stok (simulasi)
+    $('.form-stock').on('submit', function (e) {
+        e.preventDefault();
+        alert('Stok diperbarui (simulasi tampilan).');
     });
 </script>
 @endpush

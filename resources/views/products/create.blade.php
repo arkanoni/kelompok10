@@ -8,8 +8,7 @@
         <div class="card shadow-sm">
             <div class="card-header fw-semibold">Tambah Produk</div>
             <div class="card-body">
-                <form action="{{ route('products.store') }}" method="POST">
-                    @csrf
+                <form action="#" method="POST" id="product-form">
                     @include('products._form')
                 </form>
             </div>
@@ -17,3 +16,13 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    $('#product-form').on('submit', function (e) {
+        e.preventDefault();
+        alert('Produk disimpan (simulasi tampilan).');
+        window.location.href = "{{ route('products.index') }}";
+    });
+</script>
+@endpush
