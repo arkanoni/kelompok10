@@ -34,7 +34,7 @@ class ProductController extends Controller
             ->paginate(8)
             ->withQueryString();
 
-        $categories = Category::orderBy('name')->get();
+        $categories = Category::orderBy('nama_kategori')->get();
 
         return view('products.catalog', compact('products', 'categories'));
     }
@@ -42,7 +42,7 @@ class ProductController extends Controller
     // CREATE: form
     public function create(): View
     {
-        $categories = Category::orderBy('name')->get();
+        $categories = Category::orderBy('nama_kategori')->get();
 
         return view('products.create', compact('categories'));
     }
@@ -59,7 +59,7 @@ class ProductController extends Controller
     // UPDATE: form (route model binding)
     public function edit(Product $product): View
     {
-        $categories = Category::orderBy('name')->get();
+        $categories = Category::orderBy('nama_kategori')->get();
 
         return view('products.edit', compact('product', 'categories'));
     }
