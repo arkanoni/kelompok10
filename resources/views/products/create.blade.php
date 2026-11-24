@@ -8,7 +8,8 @@
         <div class="card shadow-sm">
             <div class="card-header fw-semibold">Tambah Produk</div>
             <div class="card-body">
-                <form action="#" method="POST" id="product-form">
+                <form action="{{ route('products.store') }}" method="POST" id="product-form" novalidate>
+                    @csrf
                     @include('products._form')
                 </form>
             </div>
@@ -19,10 +20,9 @@
 
 @push('scripts')
 <script>
-    $('#product-form').on('submit', function (e) {
-        e.preventDefault();
-        alert('Produk disimpan (simulasi tampilan).');
-        window.location.href = "{{ route('products.index') }}";
+    // Cegah klik ganda saat submit
+    $('#product-form').on('submit', function () {
+        $(this).find('button[type=submit]').prop('disabled', true).text('Menyimpan...');
     });
 </script>
 @endpush

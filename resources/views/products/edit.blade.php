@@ -8,16 +8,10 @@
         <div class="card shadow-sm">
             <div class="card-header fw-semibold">Edit Produk</div>
             <div class="card-body">
-                <form action="#" method="POST" id="product-form">
-                    @include('products._form', [
-                        'product' => [
-                            'category'    => 'Makanan',
-                            'name'        => 'Indomie Goreng',
-                            'description' => 'Mi instan goreng 85 gr',
-                            'price'       => 3500,
-                            'stock'       => 120,
-                        ],
-                    ])
+                <form action="{{ route('products.update', $product) }}" method="POST" id="product-form" novalidate>
+                    @csrf
+                    @method('PUT')
+                    @include('products._form')
                 </form>
             </div>
         </div>
@@ -27,10 +21,8 @@
 
 @push('scripts')
 <script>
-    $('#product-form').on('submit', function (e) {
-        e.preventDefault();
-        alert('Perubahan disimpan (simulasi tampilan).');
-        window.location.href = "{{ route('products.index') }}";
+    $('#product-form').on('submit', function () {
+        $(this).find('button[type=submit]').prop('disabled', true).text('Menyimpan...');
     });
 </script>
 @endpush

@@ -18,10 +18,12 @@
         <div class="collapse navbar-collapse" id="nav">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ route('products.index') }}">Data Produk</a>
+                    <a class="nav-link {{ request()->routeIs('products.index', 'products.create', 'products.edit') ? 'active' : '' }}"
+                       href="{{ route('products.index') }}">Data Produk</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ route('products.catalog') }}">Katalog</a>
+                    <a class="nav-link {{ request()->routeIs('products.catalog') ? 'active' : '' }}"
+                       href="{{ route('products.catalog') }}">Katalog</a>
                 </li>
             </ul>
         </div>
@@ -29,6 +31,13 @@
 </nav>
 
 <main class="container pb-5">
+    @if (session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
     @yield('content')
 </main>
 

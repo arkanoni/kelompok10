@@ -1,11 +1,17 @@
 <?php
 
+use App\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/products');
 
-Route::view('/katalog', 'products.catalog')->name('products.catalog');
+// Katalog (tampilan pembeli)
+Route::get('/katalog', [ProductController::class, 'catalog'])->name('products.catalog');
 
-Route::view('/products', 'products.index')->name('products.index');
-Route::view('/products/create', 'products.create')->name('products.create');
-Route::view('/products/edit', 'products.edit')->name('products.edit');
+// CRUD produk (admin & pegawai).
+// Setelah modul Autentikasi (Ibnu) di-merge, aktifkan middleware di bawah:
+// Route::middleware(['auth'])->group(function () {
+Route::resource('products', ProductController::class)->except('show');
+Route::patch('/products/{product}/stock', [ProductController::class, 'updateStock'])
+    ->name('products.stock');
+// });
