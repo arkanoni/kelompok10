@@ -1,71 +1,66 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ReportController;
-use App\Http\Controllers\ShopController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\ControllerTesting;
-
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
 
-//tamu(belum login)
-Route::middleware('guest')->group(function(){
+// Tamu: belum login.
+Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('login', [AuthController::class, 'login']);
-    Route::get('/register', [AuthController::class, 'showRegister']);
-    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login'])->name('login.store');
+
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+    Route::post('/register', [AuthController::class, 'register'])
+        ->middleware('throttle:10,1')
+        ->name('register.store');
 });
 
-// sudah login
-Route::middleware('auth')->group(function(){
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/dashboard', [AuthController::class, 'index'])->name('dashboard');
-    Route::get('/profile', [ProfileController::class, 'edit']);
-    Route::post('/profile', [ProfileController::class, 'update']);
+// Pengguna yang sudah login.
+Route::middleware('auth')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    // KHUSUS ADMIN
-    Route::middleware('role:admin')->group(function(){
-    Route::resource('user', UserController::class)->except('show');
-    Route::resource('categories', CategoryController::class)->only(['create', 'store', 'edit', 'update', 'destrory']);
-    Route::delete('/orders/{order}', [OrderController::class, 'destroy']);
-    Route::patch('/orders/{order}/status', [OrderController::class, 'export']);
-    Route::get('/reports/inventory/export', [ReportController::class, 'export']);
+    // Sementara, sesudah login arahkan ke halaman yang sudah tersedia.
+    // Dashboard tersendiri disambungkan ketika modul dashboard sudah siap.
+    Route::get('/dashboard', function (Request $request) {
+        $route = in_array($request->user()->role, ['admin', 'pegawai'], true)
+            ? 'reports.inventory'
+            : 'products.catalog';
+
+        return redirect()->route($route);
+    })->name('dashboard');
+
+    Route::get('/katalog', [ProductController::class, 'catalog'])
+        ->name('products.catalog');
+
+    // Menjaga tautan /shop lama tetap menuju katalog, tanpa fitur pemesanan.
+    Route::redirect('/shop', '/katalog')->name('shop.index');
+
+    // Admin: tambah, edit, dan hapus kategori.
+    Route::middleware('role:admin')->group(function () {
+        Route::resource('categories', CategoryController::class)
+            ->except(['index', 'show']);
     });
 
-    //admin dan pegawai
-    Route::middleware('role:admin,pegawai')->group(function(){
-        Route::get('/categories', [CategoryController::class, 'index']);
+    // Admin dan pegawai: lihat kategori serta kelola produk/stok.
+    Route::middleware('role:admin,pegawai')->group(function () {
+        Route::get('/categories', [CategoryController::class, 'index'])
+            ->name('categories.index');
 
-        Route::get('/products/stock', [ProductController::class, 'stock']);
-        Route::patch('/products/{product}/stock', [ProductController::class, 'updateStock']);
-        Route::resource('products', ProductController::class)->except('show');
+        // Stok dikelola langsung di tabel produk.
+        Route::redirect('/products/stock', '/products');
 
-        Route::get('/orders', [OrderController::class, 'index']);
-        Route::get('/orders/{order}', [OrderController::class, 'show']);
-        // Route::patch('/orders/{order}/status', [OrderController::class, 'export']);
+        Route::resource('products', ProductController::class)
+            ->except('show');
 
-        Route::get('/reports/inventory', [ReportController::class, 'inventory']);
-        // Route::get('/reports/inventory/export', [ReportController::class, 'export']);
-    });
-
-    //khusus pembeli
-    Route::middleware('role:user')->prefix('shop')->group(function () {
-        Route::get('/', [ShopController::class, 'index']);
-        Route::get('/checkout/{product}', [ShopController::class, 'checkout']);
-        Route::post('/orders', [ShopController::class, 'store']);
-        Route::get('/orders', [ShopController::class, 'orders']);
-        Route::get('/orders/{order}', [ShopController::class, 'orderShow']);
+        Route::patch('/products/{product}/stock', [ProductController::class, 'updateStock'])
+            ->name('products.stock');
     });
 });
 
-
-// reports
-// Route::middleware('reports')->group(function(){
-//     Route::get('/reports', [ReportController::class, 'index'])->name('reports');
-// });
+// Kedua route laporan didefinisikan di sini, cukup dimuat satu kali.
+// File ini sudah membungkus route dengan auth; role diperiksa oleh request laporan.
+require __DIR__.'/laporan.php';

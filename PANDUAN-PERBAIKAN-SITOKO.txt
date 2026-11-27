@@ -1,0 +1,217 @@
+PANDUAN PERBAIKAN DAN PEMERIKSAAN SiTOKO
+Basis: kelompok10(2).zip yang diunggah pengguna
+Branch lokal yang dipertahankan: modul-laporan
+
+1. APA YANG DITEMUKAN
+
+Sesudah admin atau pegawai login, /dashboard mengalihkan ke /reports/inventory.
+Halaman ini menghitung langsung data tabel products, dengan filter kategori jika
+dipilih. Template dashboard.blade.php lama tidak dipakai oleh alur tersebut.
+
+Di unggahan, DatabaseSeeder hanya membuat Test User dan DemoUserSeeder hanya
+membuat akun admin/pegawai/pembeli. Keduanya tidak mengisi inventaris. Karena itu,
+migration dan akun login yang sudah berhasil belum berarti produk sudah tersedia.
+Migration membuat struktur tabel; isi produk harus dimasukkan lewat formulir,
+seeder yang dipilih secara sengaja, atau pemindahan database dari laptop sumber.
+
+ZIP tidak memuat isi database MySQL di laptop. Jadi pemeriksaan ini tidak dapat
+memastikan apakah produk asli di laptop kosong, terfilter, atau tersimpan di
+database lain. Jika jenis produk pada laporan juga 0, query tidak menemukan
+produk untuk database/filter tersebut. Mengisi tabel reports tidak diperlukan;
+laporan inventaris membaca products dan categories.
+
+Unggahan juga masih mencampur controller dan view kategori/produk versi draft
+dengan auth, model, migration, dan laporan yang sudah lebih baru. Draft produk
+memakai kolom kategori name padahal schema memakai nama_kategori. Katalog belum
+mempunyai method/controller dan view yang sesuai. Draft kategori belum lengkap.
+
+2. PERBAIKAN YANG SUDAH DILAKUKAN
+
+12 file inti dipulihkan dari versi final teman:
+- Kategori: controller dan 3 view dari commit
+  fd16c9c060c54c9be4ab0e8687bc747440e4bd2e.
+- Produk: controller, ProductRequest, ProductSeeder, dan 5 view dari commit
+  6a0d6c45a07c62ca2e8d7d850278900cdd5033ca.
+
+11 dari 12 file ini byte-identik dengan sumber final. Satu koreksi pada katalog
+mengganti category->name menjadi category->nama_kategori. Koreksi ini sudah ada
+di integrasi lokal Dading 13cc08e26e9671ff50f0a1c718a6180b1178dda4.
+
+Controller lama app/Http/Controllers/categoryController.php diganti oleh
+app/Http/Controllers/CategoryController.php. Jangan menyimpan keduanya.
+
+Dua seeder pendukung ditambahkan:
+- CategorySeeder: menambahkan kategori contoh yang belum tersedia tanpa mengganti
+  kategori lama, serta memilih slug lain jika slug yang diinginkan sudah dipakai.
+- DemoInventorySeeder: hanya untuk APP_ENV local/testing; hanya mengisi data contoh
+  jika belum ada SATU PUN produk. Jika sudah ada produk, seluruh proses dilewati.
+  Tidak memanggil seeder akun dan tidak mengubah password. Transaksi dibatalkan
+  seluruhnya jika salah satu penyimpanan produk gagal.
+
+ProductSeeder asli teman tetap dipertahankan. Gunakan DemoInventorySeeder sebagai
+pintu masuk yang aman; menjalankan ProductSeeder langsung dapat memperbarui ulang
+harga/stok produk contoh karena perilaku updateOrCreate pada kode aslinya.
+
+Nama dan isi semua migration tetap seperti unggahan, termasuk nama dengan dua
+timestamp. Nama panjang tersebut tidak perlu diganti setelah migration dijalankan.
+Model Product/Category, auth, laporan, middleware, routes/web.php, routes/laporan.php,
+layout bersama, konfigurasi, composer.json/lock dan .env dipertahankan byte-identik.
+Tidak ada perubahan akun/password di database pengguna dan tidak ada push GitHub.
+
+3. MEMASANG PAKET LENGKAP
+
+Paket ini berisi folder proyek lengkap kelompok10, bukan hanya empat file.
+Simpan folder proyek lama sebagai cadangan, lalu ekstrak paket ke folder terpisah.
+Buka terminal pada folder hasil ekstrak yang berisi artisan dan composer.json.
+Gunakan folder hasil ekstrak tersebut ketika menjalankan aplikasi.
+
+Konfigurasi .env di paket berasal dari unggahan yang sama. Pastikan database yang
+dipilih memang database toko yang ingin dipakai; pada unggahan namanya sitoko.
+Jalankan MySQL di Laragon seperti biasa. Akun serta produk tersimpan di MySQL,
+bukan di dalam file PHP atau ZIP ini.
+
+Jalankan berurutan:
+
+composer dump-autoload
+php artisan config:clear
+php artisan migrate
+php artisan optimize:clear
+php artisan serve
+
+php artisan migrate menjalankan migration yang belum tercatat. Nama migration
+sengaja dipertahankan agar yang sudah pernah dijalankan tidak dianggap migration
+baru. Tidak perlu migrate:fresh, migrate:refresh, atau db:wipe; perintah tersebut
+bukan langkah perbaikan ini dan dapat menghapus data yang masih diperlukan.
+
+Tidak perlu membuat ulang akun atau mengganti password. Gunakan akun di database
+laptop yang selama ini sudah bisa dipakai login.
+
+Jika memasang dengan menyalin file ke folder lama, salin sesuai path pada daftar
+perubahan di bagian 6. Pada Windows, pastikan nama CategoryController.php diawali
+C besar. Jika rename langsung tidak mengubah kapitalisasi, ganti sementara nama
+file lama ke nama lain, salin file final, lalu singkirkan file sementara dari folder
+Controllers. Bila memakai Git, perubahan kapitalisasi dapat dicatat dengan:
+
+git mv app/Http/Controllers/categoryController.php app/Http/Controllers/CategoryController.tmp
+git mv app/Http/Controllers/CategoryController.tmp app/Http/Controllers/CategoryController.php
+
+Perintah git mv tersebut hanya untuk folder lama yang masih memiliki nama file
+lowercase. Pada paket lengkap nama file sudah benar, jadi tidak perlu dijalankan.
+
+4. MEMASTIKAN PENYEBAB ANGKA 0 DI LAPTOP
+
+Login admin, buka /reports/inventory lalu klik Reset agar filter kembali ke semua
+kategori. Jika tetap nol, di terminal proyek jalankan:
+
+php artisan tinker
+
+Lalu jalankan satu per satu di prompt Tinker:
+
+DB::connection()->getDatabaseName();
+App\Models\Category::count();
+App\Models\Product::count();
+App\Models\Product::sum('stock');
+exit
+
+Hasil berturut-turut menunjukkan database aktif, jumlah kategori, jumlah produk,
+dan total stok. Ini pemeriksaan baca saja.
+
+- Jika jumlah produk 0, laporan kosong memang sesuai datanya.
+- Jika produk ada tetapi stoknya 0, isi/perbarui stok melalui Data Produk.
+- Jika produk ada dan stok positif tetapi laporan tetap nol, pastikan filter sudah
+  di-reset dan browser memakai server/folder proyek yang baru dijalankan.
+- Jika sebelumnya ada data tetapi database aktif berbeda, perbaiki DB_DATABASE
+  sesuai database yang benar kemudian jalankan php artisan config:clear.
+- Jika data asli memang belum dipindahkan dari laptop lain, gunakan ekspor/impor
+  SQL database sumber. Menyalin repo/ZIP dan menjalankan migration tidak menyalin
+  isi MySQL. Data contoh tidak memulihkan data toko asli yang hilang.
+
+5. DATA CONTOH OPSIONAL
+
+Jika inventaris memang kosong dan kamu ingin mencoba seluruh alur, jalankan:
+
+php artisan db:seed --class=DemoInventorySeeder
+
+Saat database inventaris benar-benar kosong, hasilnya:
+- 3 kategori: Makanan, Minuman, Kebutuhan Rumah
+- 6 jenis produk
+- 299 total stok
+- Rp2.422.000,00 nilai inventaris (harga x stok)
+- 1 jenis produk dengan stok menipis (stok <= 5)
+
+Buka kembali laporan dan klik Reset. Jika masih ada kategori lain dari sebelumnya,
+jumlah kategori dapat lebih dari 3; seeder tetap mempertahankan kategori tersebut.
+
+Jika sudah ada produk, seeder menampilkan pesan bahwa pengisian dilewati. Hal ini
+disengaja agar data toko tidak tertimpa. Jika memilih mengisi data toko sendiri,
+tambahkan kategori dan produk melalui formulir; tidak wajib memakai data contoh.
+
+6. DAFTAR PERUBAHAN DARI ZIP UNGGAHAN
+
+- added: app/Http/Controllers/CategoryController.php
+- modified: app/Http/Controllers/ProductController.php
+- removed: app/Http/Controllers/categoryController.php
+- added: app/Http/Requests/ProductRequest.php
+- added: database/seeders/CategorySeeder.php
+- added: database/seeders/DemoInventorySeeder.php
+- added: database/seeders/ProductSeeder.php
+- modified: resources/views/categories/create.blade.php
+- modified: resources/views/categories/edit.blade.php
+- modified: resources/views/categories/index.blade.php
+- modified: resources/views/products/_form.blade.php
+- added: resources/views/products/catalog.blade.php
+- modified: resources/views/products/create.blade.php
+- modified: resources/views/products/edit.blade.php
+- modified: resources/views/products/index.blade.php
+- modified: tests/Feature/ExampleTest.php
+- added: tests/Feature/InventoryCompletionTest.php
+- added: tests/Feature/ModuleCompletionTest.php
+
+Selain daftar di atas, file panduan ini ditambahkan. ExampleTest disesuaikan dengan
+route root yang memang mengalihkan ke /dashboard. Dua file test tambahan memeriksa
+integrasi modul dan menjaga agar seeder inventaris tidak menimpa data lama.
+
+7. HASIL VERIFIKASI
+
+Lingkungan uji: PHP 8.3.11, dependency terkunci dari unggahan, SQLite terpisah.
+Database MySQL laptop pengguna tidak diakses atau diubah.
+
+- 55 test regresi gabungan lulus, 746 assertions. Ini mencakup 43 kasus auth/laporan
+  dari pemeriksaan sebelumnya, 2 test bawaan, dan 10 kasus tambahan pada paket ini.
+- 37 pemeriksaan HTTP nyata lulus dengan sesi/cache database dan CSRF aktif.
+- Akun admin/pegawai/pembeli mencapai halaman yang tepat; hak akses tetap berlaku.
+- CRUD kategori/produk, pencarian, filter, pagination, label kategori katalog,
+  perubahan stok, serta laporan dan CSV diuji.
+- Database yang hanya berisi akun menghasilkan empat kartu nol.
+- Setelah seeder inventaris: 6 produk, 299 stok, nilai 2422000.00, low stock 1.
+- Penambahan produk dan perubahan stok lewat aplikasi langsung muncul di laporan.
+- Menjalankan ulang seeder inventaris mempertahankan produk, kategori, dan akun.
+- Simulasi kegagalan insert membatalkan penambahan inventaris seluruhnya.
+- Daftar 25 route aplikasi dimuat; template Blade berhasil dikompilasi.
+- Pemeriksaan sintaks berkas PHP aplikasi lulus.
+- 28 berkas penting diverifikasi byte-identik, termasuk seluruh migration,
+  konfigurasi database, route, model, auth dan laporan, dependency manifest, .env.
+
+Paket menyertakan 12 kasus test yang dapat dijalankan lewat php artisan test dengan
+konfigurasi SQLite :memory: pada phpunit.xml. Angka 55 di atas adalah total suite
+audit gabungan, termasuk test auth/laporan tambahan di lingkungan audit.
+
+8. BATAS DAN PERILAKU YANG MASIH ADA
+
+- Modul kategori/produk dipulihkan sesuai karya final teman. Pada migration produk
+  asli, menghapus kategori juga menghapus produk dalam kategori itu (cascade).
+  Karena itu penghapusan kategori dapat membuat inventaris berkurang/menjadi kosong.
+- Kategori asli memvalidasi nama unik, tetapi dua nama berbeda yang menghasilkan
+  slug sama (misalnya Makanan Ringan dan Makanan-Ringan) masih dapat ditolak dengan
+  error database. Ini keterbatasan validasi modul kategori, bukan penyebab laporan
+  membaca nol. Kebijakan/implementasi aslinya tidak diubah dalam pemulihan ini.
+- Dashboard tersendiri, profil, manajemen akun, pesanan, checkout/POS dan pembayaran
+  yang disebut README belum semuanya tersambung. /shop saat ini mengarah ke katalog.
+  Pekerjaan POS/pembayaran tetap untuk tahap berikutnya sesuai permintaan pengguna.
+
+Sumber modul:
+https://github.com/arkanoni/kelompok10/commit/fd16c9c060c54c9be4ab0e8687bc747440e4bd2e
+https://github.com/arkanoni/kelompok10/commit/6a0d6c45a07c62ca2e8d7d850278900cdd5033ca
+Dokumentasi mekanisme migration/seeding:
+https://laravel.com/docs/13.x/migrations
+https://laravel.com/docs/13.x/seeding

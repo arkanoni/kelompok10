@@ -2,82 +2,100 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ProductRequest;
 use App\Models\Category;
 use App\Models\Product;
-use Illuminate\Database\QueryException;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class ProductController extends Controller
 {
-    private function rules(): array
-    {
-        return [
-            'name' => 'required|string|max:255',
-            'category_id' => 'required|exists:categories,id',
-            'price' => 'required|integer|min:0',
-            'stock' => 'required|integer|min:0',
-        ];
-    }
-
-    public function index(Request $request)
+    // READ: tabel data produk (cari + filter kategori + pagination)
+    public function index(Request $request): View
     {
         $products = Product::with('category')
-            ->when($request->category, fn ($q, $c) => $q->where('category_id', $c))
-            ->latest()->get();
-        $categories = Category::orderBy('name')->get();
+            ->filter($request->only('q', 'category'))
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
+
+        $categories = Category::orderBy('nama_kategori')->get();
 
         return view('products.index', compact('products', 'categories'));
     }
 
-    public function create()
+    // READ: katalog kartu produk (tampilan pembeli)
+    public function catalog(Request $request): View
     {
-        $categories = Category::orderBy('name')->get();
+        $products = Product::with('category')
+            ->filter($request->only('q', 'category'))
+            ->latest()
+            ->paginate(8)
+            ->withQueryString();
+
+        $categories = Category::orderBy('nama_kategori')->get();
+
+        return view('products.catalog', compact('products', 'categories'));
+    }
+
+    // CREATE: form
+    public function create(): View
+    {
+        $categories = Category::orderBy('nama_kategori')->get();
+
         return view('products.create', compact('categories'));
     }
 
-    public function store(Request $request)
+    // CREATE: simpan (validasi di ProductRequest)
+    public function store(ProductRequest $request): RedirectResponse
     {
-        Product::create($request->validate($this->rules()));
+        Product::create($request->validated());
 
-        return redirect('/products')->with('success', 'Produk berhasil ditambahkan.');
+        return redirect()->route('products.index')
+            ->with('success', 'Produk berhasil ditambahkan.');
     }
 
-    public function edit(Product $product)
+    // UPDATE: form (route model binding)
+    public function edit(Product $product): View
     {
-        $categories = Category::orderBy('name')->get();
+        $categories = Category::orderBy('nama_kategori')->get();
+
         return view('products.edit', compact('product', 'categories'));
     }
 
-    public function update(Request $request, Product $product)
+    // UPDATE: simpan perubahan
+    public function update(ProductRequest $request, Product $product): RedirectResponse
     {
-        $product->update($request->validate($this->rules()));
+        $product->update($request->validated());
 
-        return redirect('/products')->with('success', 'Produk berhasil diperbarui.');
+        return redirect()->route('products.index')
+            ->with('success', 'Produk berhasil diperbarui.');
     }
 
-    public function destroy(Product $product)
+    // UPDATE cepat: ubah stok langsung dari tabel
+    public function updateStock(Request $request, Product $product): RedirectResponse
     {
-        try {
-            $product->delete();
-        } catch (QueryException $e) {
-            // produk sudah pernah dipesan (terikat order_items)
-            return back()->withErrors(['hapus' => 'Produk sudah ada di riwayat pesanan, tidak bisa dihapus.']);
-        }
+        $data = $request->validate(
+            ['stock' => ['required', 'integer', 'min:0']],
+            [
+                'stock.required' => 'Stok wajib diisi.',
+                'stock.integer'  => 'Stok harus berupa bilangan bulat.',
+                'stock.min'      => 'Stok tidak boleh negatif.',
+            ]
+        );
 
-        return redirect('/products')->with('success', 'Produk berhasil dihapus.');
-    }
-
-    public function stock()
-    {
-        $products = Product::with('category')->orderBy('name')->get();
-        return view('products.stock', compact('products'));
-    }
-
-    public function updateStock(Request $request, Product $product)
-    {
-        $data = $request->validate(['stock' => 'required|integer|min:0']);
         $product->update($data);
 
-        return back()->with('success', 'Stok ' . $product->name . ' diperbarui.');
+        return back()->with('success', "Stok \"{$product->name}\" diperbarui menjadi {$product->stock}.");
+    }
+
+    // DELETE
+    public function destroy(Product $product): RedirectResponse
+    {
+        $product->delete();
+
+        return redirect()->route('products.index')
+            ->with('success', 'Produk berhasil dihapus.');
     }
 }

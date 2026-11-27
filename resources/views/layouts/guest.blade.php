@@ -5,4 +5,18 @@
 h1{margin:0 0 16px;font-size:22px;color:#12332f}label{font-size:14px}
 input{width:100%;padding:8px;margin:4px 0 12px;border:1px solid #b8c4c3;border-radius:6px;font:inherit}
 button{width:100%;padding:9px;background:#0f766e;color:#fff;border:0;border-radius:6px;cursor:pointer}a{color:#0f766e}.err{color:#b91c1c;font-size:14px}</style></head>
-<body><div class="box"><h1>SiTOKO</h1>@yield('content')</div></body></html>
+<body><div class="box"><h1>SiTOKO</h1>
+@if (session('success'))
+    <p role="status">{{ session('success') }}</p>
+@endif
+@if ($errors->any())
+    <div class="err" role="alert">
+        <p>Periksa kembali data berikut:</p>
+        <ul>
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+@yield('content')</div></body></html>
